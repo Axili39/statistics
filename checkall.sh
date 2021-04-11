@@ -1,6 +1,6 @@
 for TICKER in $(cat TICKERS.PA.txt)
 do
-	if [ ! -f ${TICKER}.csv ]
+	if [ ! -f csv/${TICKER}.csv ]
 	then
 		echo "downloading ${TICKER}"
     		sleep 5	
