@@ -20,7 +20,7 @@ type StockRecord struct {
 
 func load(ticker string, after time.Time) []StockRecord {
 	// Open the file
-	csvfile, err := os.Open(ticker + ".csv")
+	csvfile, err := os.Open("csv/" + ticker + ".csv")
 	if err != nil {
 		log.Fatalln("Couldn't open the csv file", err)
 	}
@@ -70,7 +70,7 @@ func load(ticker string, after time.Time) []StockRecord {
 	//fmt.Println(records)
 	return records
 }
-func compute(ticker string, records []StockRecord) {
+func compute(ticker string, records []StockRecord, criteria float64) {
 	// Convert raw data to serie
 	var serie stats.Series
 	for index := range records {
@@ -79,7 +79,7 @@ func compute(ticker string, records []StockRecord) {
 
 	reg, err := stats.LinearRegression(serie)
 	if err != nil {
-		fmt.Println(err)
+		//fmt.Println("regression error:",err)
 		return
 	}
 	var sample stats.Float64Data
@@ -96,12 +96,16 @@ func compute(ticker string, records []StockRecord) {
 	*/
 	index := len(records)-1
 	deltaStd := (serie[index].Y-reg[index].Y)/stddev
-	fmt.Println(ticker, "date :", records[index].Date, " open:", serie[index].Y, " reg:", reg[index].Y, " dY:", serie[index].Y-reg[index].Y, " dStd:", deltaStd, "standard dev:", stddev)
+	if deltaStd < criteria {
+		fmt.Println(ticker, "date :", records[index].Date, " open:", serie[index].Y, " reg:", reg[index].Y, " dY:", serie[index].Y-reg[index].Y, " dStd:", deltaStd, "standard dev:", stddev)
+	}
 }
 
 func main() {
 	var ticker = flag.String("t", "ORA.PA", "ticker to check")
+	var years = flag.Int("y", 10, "number of years")
+	var criteria = flag.Float64("c", 0, "number of std deviation under regression line to be canditate")
 	flag.Parse()
-	data := load(*ticker, time.Now().AddDate(-10, 0, 0))
-	compute(*ticker, data)
+	data := load(*ticker, time.Now().AddDate(-*years, 0, 0))
+	compute(*ticker, data, *criteria)
 }
