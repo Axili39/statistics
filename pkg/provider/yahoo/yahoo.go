@@ -52,7 +52,7 @@ func (p *YahooStockProvider) RetrieveData(ticker string, from time.Time, to time
 
 		eodRecord, err := provider.EodRecordFromString(ticker, record[0], record[1], record[2], record[3], record[4], record[5], record[6])
 		if err != nil {
-			return nil, err
+			continue
 		}
 		records = append(records, *eodRecord)
 	}
