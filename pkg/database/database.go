@@ -5,8 +5,7 @@ import (
 	"encoding/csv"
 	"fmt"
 	"io"
-	"log"
-	"net/http"
+	"os"
 	"time"
 
 	"github.com/Axili39/statistics/pkg/provider"
@@ -20,7 +19,7 @@ func anime(iterator int) {
 
 func Update(db *sql.DB, p provider.StockProvider, ticker string, from time.Time, to time.Time) error {
 	// Direct download
-	data, err  := p.RetrieveData(ticker, from, to)
+	data, err := p.RetrieveData(ticker, from, to)
 	if err != nil {
 		return err
 	}
@@ -32,9 +31,10 @@ func Update(db *sql.DB, p provider.StockProvider, ticker string, from time.Time,
 	}
 
 	// Iterate through the records
-	fmt.Println("\ttotal records :", len(data))	
+	fmt.Println("\ttotal records :", len(data))
 	for index, record := range data {
-		res, err := stmt.Exec(ticker, record.Ticker, record.Date, record.Open, record.High, record.Low, record.Close, record.AdjClose, record.Volume)
+
+		res, err := stmt.Exec(record.Ticker, record.Date, record.Open, record.High, record.Low, record.Close, record.AdjClose, record.Volume)
 		if err != nil {
 			return err
 		}
@@ -45,20 +45,21 @@ func Update(db *sql.DB, p provider.StockProvider, ticker string, from time.Time,
 
 		if index == 0 {
 			fmt.Println("\tfirst id: ", id, record)
-		} else if index == len(data) -1 {
+		} else if index == len(data)-1 {
 			fmt.Println("\tlast id: ", id, record)
 		}
 		//fmt.Printf(str(iterator))
-		anime(index)		
+		anime(index)
 	}
+	stmt.Close()
 	return nil
 }
 
-func UpdateAllTickers(db *sql.DB, p provider.StockProvider, from time.Time, to time.Time) {
+func UpdateAllTickers(db *sql.DB, p provider.StockProvider, from time.Time, to time.Time) error {
 	//
 	rows, err := db.Query("SELECT ticker, name  FROM tickers")
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 
 	var ticker string
@@ -72,7 +73,7 @@ func UpdateAllTickers(db *sql.DB, p provider.StockProvider, from time.Time, to t
 	for rows.Next() {
 		err = rows.Scan(&ticker, &name)
 		if err != nil {
-			log.Fatal(err)
+			return err
 		}
 
 		work = append(work, record{ticker, name})
@@ -82,11 +83,61 @@ func UpdateAllTickers(db *sql.DB, p provider.StockProvider, from time.Time, to t
 
 	for _, r := range work {
 		fmt.Println("Loading ticker :", r.ticker, " ", r.name)
-		Update(db, p, r.ticker, from, to)
+		err = Update(db, p, r.ticker, from, to)
+		if err != nil {
+			return err
+		}
 	}
+
+	return nil
 }
 
-func ImportTickerList(db *sql.DB, )
+// ImportTickerList : import tickers list from csv file to database
+// csv must follow this format : ticker,name,exchange,category name,country
+func ImportTickerList(db *sql.DB, filename string) error {
+	// Open the file
+	csvfile, err := os.Open(filename)
+	if err != nil {
+		return err
+	}
+
+	// Parse the file
+	r := csv.NewReader(csvfile)
+	r.Comma = ';'
+
+	// Read and ignore labels
+	_, err = r.Read()
+	if err == io.EOF {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	// Prepare Db
+	stmt, err := db.Prepare("INSERT INTO tickers('ticker','name','exchange','category name','country') values(?,?,?,?,?)")
+	if err != nil {
+		return err
+	}
+
+	// Iterate through the records
+	for {
+		// Read each record from csv
+		record, err := r.Read()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return err
+		}
+		stmt.Exec(record[0], record[1], record[2], record[3], record[4])
+		if err != nil {
+
+			return err
+		}
+	}
+	return nil
+}
+
 func batchRequestDB(db *sql.DB, requests []string) error {
 	for _, r := range requests {
 		stm, err := db.Prepare(r)
@@ -101,15 +152,18 @@ func batchRequestDB(db *sql.DB, requests []string) error {
 	return nil
 }
 
-func CreateDB(file string) error {
+func Open(file string) (*sql.DB, error) {
+	return sql.Open("sqlite3", file)
+}
+func Create(file string) error {
 	// Open file
-	db, err := sql.Open("sqlite3", file)
+	db, err := Open(file)
 	if err != nil {
 		return err
 	}
 	defer db.Close()
 
-	script := []string {
+	script := []string{
 		// Clean all tables
 		"DROP TABLE IF EXISTS eod",
 		"DROP TABLE IF EXISTS tickers",
@@ -135,11 +189,11 @@ func CreateDB(file string) error {
     		"country" 		STRING NULL
 		)`,
 	}
-	
+
 	err = batchRequestDB(db, script)
 	if err != nil {
 		return err
 	}
-	
+
 	return nil
 }
