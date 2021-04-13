@@ -12,9 +12,15 @@ import (
 const urlBase string = "https://query1.finance.yahoo.com/v7/finance/download/"
 
 type YahooStockProvider struct {
+	// TODO add a rate limiter
+	lastRequest time.Time
 }
 
 func (p *YahooStockProvider) RetrieveData(ticker string, from time.Time, to time.Time) ([]provider.EodRecord, error) {
+	if p.lastRequest.Add(time.Second*10).Second() > time.Now().Second() {
+		// wait
+		time.Sleep(10*time.Second)
+	}
 	url := urlBase + ticker +
 		"?period1=" + fmt.Sprint(from.Unix()) +
 		"&period2=" + fmt.Sprint(to.Unix()) +
@@ -28,6 +34,7 @@ func (p *YahooStockProvider) RetrieveData(ticker string, from time.Time, to time
 		return nil, err
 	}
 	defer resp.Body.Close()
+	p.lastRequest = time.Now()
 
 	// Parse the file
 	r := csv.NewReader(resp.Body)

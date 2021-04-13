@@ -47,7 +47,6 @@ func (s *Server)getTickerData(w http.ResponseWriter, r *http.Request, ps httprou
 		}
 	}
 	
-	
 	p := dbfile.DBFile{s.db}
 	data, err := p.RetrieveData(ticker, from, to)
 
