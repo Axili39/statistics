@@ -155,6 +155,7 @@ func batchRequestDB(db *sql.DB, requests []string) error {
 func Open(file string) (*sql.DB, error) {
 	return sql.Open("sqlite3", file)
 }
+
 func Create(file string) error {
 	// Open file
 	db, err := Open(file)
