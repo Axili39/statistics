@@ -17,6 +17,7 @@ type Server struct {
 
 // Compute linear regression serie and find candidate
 func (s *Server)getTickerData(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+	var err error
 	// default period
 	from := time.Now().AddDate(0,0,-1)
 	to := time.Now()
@@ -26,14 +27,24 @@ func (s *Server)getTickerData(w http.ResponseWriter, r *http.Request, ps httprou
 
 	// parse arguments
 	query := r.URL.Query()
-	fromStr, present := query["from"]
-    if present && len(fromStr) > 0 {
+	fromStr := query.Get("from")
+    if fromStr != "" {
 		// convert from to time
+		from, err = time.Parse("2006-01-02", fromStr)
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
 	}
 
-	toStr, present := query["to"]
-    if present && len(toStr) > 0 {
+	toStr := query.Get("to")
+    if toStr != "" {
 		// convert to to time
+		to, err = time.Parse("2006-01-02", toStr)
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
 	}
 	
 	
