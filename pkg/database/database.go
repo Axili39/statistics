@@ -36,7 +36,8 @@ func Update(db *sql.DB, p provider.StockProvider, ticker string, from time.Time,
 
 		res, err := stmt.Exec(record.Ticker, record.Date, record.Open, record.High, record.Low, record.Close, record.AdjClose, record.Volume)
 		if err != nil {
-			return err
+			fmt.Println(err, "  ...ignored")
+			continue
 		}
 		id, err := res.LastInsertId()
 		if err != nil {
