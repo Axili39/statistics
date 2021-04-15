@@ -9,16 +9,18 @@ import (
 	"time"
 
 	"github.com/Axili39/statistics/pkg/database"
-	"github.com/Axili39/statistics/pkg/server"
 	"github.com/Axili39/statistics/pkg/fintools"
 	"github.com/Axili39/statistics/pkg/provider"
+	"github.com/Axili39/statistics/pkg/provider/openstock"
 	"github.com/Axili39/statistics/pkg/provider/yahoo"
+	"github.com/Axili39/statistics/pkg/provider/dbfile"
+	"github.com/Axili39/statistics/pkg/server"
 )
 
-const dbfile string = "stocks.db"
+const dbfilename string = "stocks.db"
 
 func create() {
-	err := database.Create(dbfile)
+	err := database.Create(dbfilename)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -26,7 +28,7 @@ func create() {
 
 func importTickers() {
 	// Open file
-	db, err := database.Open(dbfile)
+	db, err := database.Open(dbfilename)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -38,7 +40,6 @@ func importTickers() {
 }
 
 func update(args []string) {
-	fmt.Println(args)
 	// parse command
 	CommandLine := flag.NewFlagSet("update", flag.ExitOnError)
 	years := CommandLine.Int("years", 0, "how many years to update")
@@ -50,7 +51,7 @@ func update(args []string) {
 		fmt.Println("error")
 	}
 
-	if len(args) > 0 && args[1] == "help" {
+	if len(args) > 0 && args[0] == "help" {
 		fmt.Println("stocks-ctl update :")
 		CommandLine.PrintDefaults()	
 		os.Exit(0)
@@ -59,7 +60,7 @@ func update(args []string) {
 	fmt.Println(*years)
 
 	// Open file
-	db, err := database.Open(dbfile)
+	db, err := database.Open(dbfilename)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -68,6 +69,10 @@ func update(args []string) {
 	switch *providers {
 	case "yahoo":
 		p = &yahoo.YahooStockProvider{}
+	case "openstock":
+		p = &openstock.OpenstockProvider{UrlBase: "http://127.0.0.1:8080"}
+	case "dbfile":
+		p = &dbfile.DBFileProvider{Db: db}
 	default:
 		fmt.Println("provider not yet implemented")
 		os.Exit(1)
@@ -79,19 +84,35 @@ func update(args []string) {
 	}
 }
 
-func compute() {
+func compute(args []string) {
+	// parse command
+	CommandLine := flag.NewFlagSet("compute", flag.ExitOnError)
+	years := CommandLine.Int("years", 0, "how many years to update")
+	months := CommandLine.Int("months", 0, "how many months to update")
+	days := CommandLine.Int("days", 0, "how many days to update")
+	criteria := CommandLine.Float64("criteria", 0, "count of std deviation under regression line to select ticker")
+	err := CommandLine.Parse(args)	
+	if err != nil {
+		fmt.Println("error")
+	}
+
+	if len(args) > 0 && args[0] == "help" {
+		fmt.Println("stocks-ctl compute :")
+		CommandLine.PrintDefaults()	
+		os.Exit(0)
+	}
 	// Open file
-	db, err := database.Open(dbfile)
+	db, err := database.Open(dbfilename)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	fintools.FindCandidate(db)
+	fintools.FindCandidate(db, -1*(*years), -1*(*months), -1*(*days), *criteria)
 }
 
 func serve() {
 	// Open file
-	db, err := database.Open(dbfile)
+	db, err := database.Open(dbfilename)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -121,7 +142,7 @@ func main() {
 	case "update":
 		update(os.Args[2:])
 	case "compute":
-		compute()
+		compute(os.Args[2:])
 	case "server":
 		serve()
 	default:

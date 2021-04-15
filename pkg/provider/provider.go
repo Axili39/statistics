@@ -6,14 +6,14 @@ import (
 )
 
 type EodRecord struct {
-	Ticker   string
-	Date     time.Time
-	Open     float64
-	High     float64
-	Low      float64
-	Close    float64
-	AdjClose float64
-	Volume   float64
+	Ticker   string		`json:"ticker"`
+	Date     time.Time	`json:"date"`
+	Open     float64	`json:"open"`
+	High     float64	`json:"high"`
+	Low      float64	`json:"low"`
+	Close    float64	`json:"close"`
+	AdjClose float64	`json:"adj_close"`
+	Volume   float64	`json:"volume"`
 }
 
 type StockProvider interface {

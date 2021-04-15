@@ -38,7 +38,7 @@ func compute(db *sql.DB, ticker string, after time.Time, criteria float64) {
 
 	reg, err := stats.LinearRegression(serie)
 	if err != nil {
-		fmt.Println("regression error:",err)
+		log.Println("regression error:",err)
 		return
 	}
 	var sample stats.Float64Data
@@ -60,7 +60,7 @@ func compute(db *sql.DB, ticker string, after time.Time, criteria float64) {
 	}
 }
 
-func FindCandidate(db *sql.DB) {
+func FindCandidate(db *sql.DB, years int, months int, days int, criteria float64) {
 	rows, err := db.Query("SELECT ticker, name  FROM tickers")
     if err != nil {
 		log.Fatal(err)
@@ -72,9 +72,8 @@ func FindCandidate(db *sql.DB) {
 		if err != nil {
 			log.Fatal(err)
 		}
-		fmt.Println("computing ", ticker, " ", name)
-		compute(db, ticker, time.Now().AddDate(-10,0,0), 20)
-		
+		log.Println("computing ", ticker, " ", name)
+		compute(db, ticker, time.Now().AddDate(years,months,days), criteria)
 	}
 	defer rows.Close()
 }

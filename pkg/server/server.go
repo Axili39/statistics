@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"database/sql"
+	 "encoding/json"
 	"github.com/julienschmidt/httprouter"
 	"github.com/Axili39/statistics/pkg/provider/dbfile"
 )
@@ -47,16 +48,21 @@ func (s *Server)getTickerData(w http.ResponseWriter, r *http.Request, ps httprou
 		}
 	}
 	
-	p := dbfile.DBFile{s.db}
+	p := dbfile.DBFileProvider{s.db}
 	data, err := p.RetrieveData(ticker, from, to)
 
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		fmt.Fprintln(w, err.Error())
 	}
+
+	body, err := json.Marshal(data)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		fmt.Fprintln(w, err.Error())
+	}
 	w.WriteHeader(http.StatusOK)
-	fmt.Fprintf(w, "getting %s from:%s to: %s !\n", ticker, from, to)
-	fmt.Fprintln(w, data)
+	fmt.Fprintln(w, string(body))
 }
 
 func Serve(db *sql.DB, uri string) error {

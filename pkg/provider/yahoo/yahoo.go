@@ -17,7 +17,7 @@ type YahooStockProvider struct {
 }
 
 func (p *YahooStockProvider) RetrieveData(ticker string, from time.Time, to time.Time) ([]provider.EodRecord, error) {
-	if p.lastRequest.Add(time.Second*10).Second() > time.Now().Second() {
+	if  time.Now().Second() - p.lastRequest.Second() < 10 {
 		// wait
 		time.Sleep(10*time.Second)
 	}
@@ -27,6 +27,7 @@ func (p *YahooStockProvider) RetrieveData(ticker string, from time.Time, to time
 		"&interval=1d" +
 		"&events=history" +
 		"&includeAdjustedClose=true"
+	p.lastRequest = time.Now()
 
 	resp, err := http.Get(url)
 	if err != nil {
@@ -34,7 +35,7 @@ func (p *YahooStockProvider) RetrieveData(ticker string, from time.Time, to time
 		return nil, err
 	}
 	defer resp.Body.Close()
-	p.lastRequest = time.Now()
+	
 
 	// Parse the file
 	r := csv.NewReader(resp.Body)

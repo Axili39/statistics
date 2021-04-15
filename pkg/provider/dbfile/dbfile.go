@@ -7,13 +7,11 @@ import (
 	"database/sql"
 )
 
-const urlBase string = "https://query1.finance.yahoo.com/v7/finance/download/"
-
-type DBFile struct {
+type DBFileProvider struct {
 	Db *sql.DB
 }
 
-func (p *DBFile) RetrieveData(ticker string, from time.Time, to time.Time) ([]provider.EodRecord, error) {
+func (p *DBFileProvider) RetrieveData(ticker string, from time.Time, to time.Time) ([]provider.EodRecord, error) {
 	// load
 	rows, err := p.Db.Query("SELECT ticker, date, open, high, low, close, adj_close, volume FROM eod WHERE ticker = \"" + ticker + "\" and date >= \"" + from.Format("2006-01-02") + "\" and date <= \"" + to.Format("2006-01-02") + "\"")
 	if err != nil {
