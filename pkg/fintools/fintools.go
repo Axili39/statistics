@@ -9,7 +9,7 @@ import (
 )
 
 // Compute linear regression serie and find candidate
-func compute(db *sql.DB, ticker string, after time.Time, criteria float64) {
+func CheckTicker(db *sql.DB, ticker string, after time.Time, criteria float64) {
 	// load
 	rows, err := db.Query("SELECT date, close FROM eod WHERE close <> \"null\" and ticker = \"" + ticker + "\" and date > \"" + after.Format("2006-01-02") + "\"")
 	if err != nil {
@@ -57,6 +57,9 @@ func compute(db *sql.DB, ticker string, after time.Time, criteria float64) {
 	deltaStd := (serie[index].Y-reg[index].Y)/stddev
 	if deltaStd < criteria {
 		fmt.Println(ticker, "date :", after.Add(time.Duration((serie[index].X))*time.Second), " open:", serie[index].Y, " reg:", reg[index].Y, " dY:", serie[index].Y-reg[index].Y, " dStd:", deltaStd, "standard dev:", stddev)
+	} else {
+		fmt.Println(ticker, "date :", after.Add(time.Duration((serie[index].X))*time.Second), " open:", serie[index].Y, " reg:", reg[index].Y, " dY:", serie[index].Y-reg[index].Y, " dStd:", deltaStd, "standard dev:", stddev)
+	
 	}
 }
 
@@ -73,7 +76,7 @@ func FindCandidate(db *sql.DB, years int, months int, days int, criteria float64
 			log.Fatal(err)
 		}
 		log.Println("computing ", ticker, " ", name)
-		compute(db, ticker, time.Now().AddDate(years,months,days), criteria)
+		CheckTicker(db, ticker, time.Now().AddDate(years,months,days), criteria)
 	}
 	defer rows.Close()
 }

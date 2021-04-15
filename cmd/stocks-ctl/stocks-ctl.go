@@ -46,6 +46,7 @@ func update(args []string) {
 	months := CommandLine.Int("months", 0, "how many months to update")
 	days := CommandLine.Int("days", 0, "how many days to update")
 	providers := CommandLine.String("provider", "yahoo", "provider to query (yahoo, xxxxx, openstocks")
+	ticker := CommandLine.String("ticker", "", "ticker to update")
 	err := CommandLine.Parse(args)	
 	if err != nil {
 		fmt.Println("error")
@@ -78,9 +79,16 @@ func update(args []string) {
 		os.Exit(1)
 	}
 
-	err = database.UpdateAllTickers(db, p, time.Now().AddDate(*years*-1, *months*-1, *days*-1), time.Now())
-	if err != nil {
-		log.Fatal(err)
+	if *ticker == "" {
+		err = database.UpdateAllTickers(db, p, time.Now().AddDate(*years*-1, *months*-1, *days*-1), time.Now())
+		if err != nil {
+			log.Fatal(err)
+		}
+	} else {
+		err = database.Update(db, p, *ticker, time.Now().AddDate(*years*-1, *months*-1, *days*-1), time.Now())
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 }
 
@@ -91,6 +99,7 @@ func compute(args []string) {
 	months := CommandLine.Int("months", 0, "how many months to update")
 	days := CommandLine.Int("days", 0, "how many days to update")
 	criteria := CommandLine.Float64("criteria", 0, "count of std deviation under regression line to select ticker")
+	ticker := CommandLine.String("ticker", "", "ticker to update")
 	err := CommandLine.Parse(args)	
 	if err != nil {
 		fmt.Println("error")
@@ -107,7 +116,11 @@ func compute(args []string) {
 		log.Fatal(err)
 	}
 
-	fintools.FindCandidate(db, -1*(*years), -1*(*months), -1*(*days), *criteria)
+	if *ticker == "" {
+		fintools.FindCandidate(db, -1*(*years), -1*(*months), -1*(*days), *criteria)
+	} else {
+		fintools.CheckTicker(db, *ticker, time.Now().AddDate(-1*(*years), -1*(*months), -1*(*days)), *criteria)
+	}
 }
 
 func serve() {
