@@ -34,7 +34,7 @@ func ComputeRegression(db *sql.DB, ticker string, from time.Time, to time.Time) 
 			fmt.Println(err)
 			continue
 		}
-		serie = append(serie, stats.Coordinate{t.Sub(from).Seconds(), close})
+		serie = append(serie, stats.Coordinate{t.Sub(from).Seconds()/(24*3600), close})
 	}
 
 	// compute 

@@ -98,12 +98,19 @@ func (s *Server)RegressionSeries(w http.ResponseWriter, r *http.Request, ps http
 		}
 	}
 
-	reg, err = fintools.ComputeRegression(s.db, ticker, from, to)
+	reg, err := fintools.ComputeRegression(s.db, ticker, from, to)
 	if err != nil {
 		w.WriteHeader(http.StatusConflict)
-		fmt.FPrintln(w,err)
+		fmt.Fprintln(w,err)
 		return
 	}
+	body, err := json.Marshal(reg)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		fmt.Fprintln(w, err.Error())
+	}
+	w.WriteHeader(http.StatusOK)
+	fmt.Fprintln(w, string(body))
 }
 
 func Serve(db *sql.DB, uri string) error {
@@ -111,7 +118,7 @@ func Serve(db *sql.DB, uri string) error {
     router := httprouter.New()
     
 	router.GET("/api/v1/stocks/:ticker", server.getTickerData)
-	router.GET("api/v1/regression/:ticker", server.RegressionSeries)
+	router.GET("/api/v1/regression/:ticker", server.RegressionSeries)
 
     return http.ListenAndServe(uri, router)
 }
