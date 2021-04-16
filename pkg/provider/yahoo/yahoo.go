@@ -1,12 +1,14 @@
 package yahoo
 
 import (
-	"github.com/Axili39/statistics/pkg/provider"
-	"time"
-	"net/http"
-	"fmt"
 	"encoding/csv"
+	"fmt"
 	"io"
+	"net/http"
+	"strconv"
+	"time"
+
+	"github.com/Axili39/statistics/pkg/provider"
 )
 
 const urlBase string = "https://query1.finance.yahoo.com/v7/finance/download/"
@@ -14,12 +16,13 @@ const urlBase string = "https://query1.finance.yahoo.com/v7/finance/download/"
 type YahooStockProvider struct {
 	// TODO add a rate limiter
 	lastRequest time.Time
+	period int
 }
 
 func (p *YahooStockProvider) RetrieveData(ticker string, from time.Time, to time.Time) ([]provider.EodRecord, error) {
-	if  time.Now().Second() - p.lastRequest.Second() < 10 {
+	if  time.Now().Second() - p.lastRequest.Second() < p.period {
 		// wait
-		time.Sleep(10*time.Second)
+		time.Sleep(time.Duration(p.period)*time.Second)
 	}
 	url := urlBase + ticker +
 		"?period1=" + fmt.Sprint(from.Unix()) +
@@ -65,4 +68,19 @@ func (p *YahooStockProvider) RetrieveData(ticker string, from time.Time, to time
 		records = append(records, *eodRecord)
 	}
 	return records, nil
+}
+
+func (p *YahooStockProvider) Setup(options string) error {
+	m := provider.ParseOptions(options)
+	period, ok := m["period"]
+	if ok == true {
+		var err error
+		p.period, err = strconv.Atoi(period)
+	
+		if err != nil {
+			fmt.Println("bad value for period ", period)
+		}
+	}
+	p.lastRequest = time.Now().Add(time.Duration(-1*p.period)*time.Second)
+	return nil
 }

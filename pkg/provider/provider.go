@@ -3,6 +3,8 @@ package provider
 import (
 	"time"
 	"strconv"
+	"strings"
+	"unicode"
 )
 
 type EodRecord struct {
@@ -18,6 +20,7 @@ type EodRecord struct {
 
 type StockProvider interface {
 	RetrieveData(ticker string, from time.Time, to time.Time) ([]EodRecord, error)
+	Setup(options string) error
 }
 
 func EodRecordFromString(ticker string, date string, open string, high string, low string, close string, adjClose string, volume string) (*EodRecord, error) { 
@@ -62,3 +65,33 @@ func EodRecordFromString(ticker string, date string, open string, high string, l
 	return &record, nil
 }
 
+func ParseOptions(options string) map[string]string {
+	// to generalize:
+    lastQuote := rune(0)
+    f := func(c rune) bool {
+        switch {
+        case c == lastQuote:
+            lastQuote = rune(0)
+            return false
+        case lastQuote != rune(0):
+            return false
+        case unicode.In(c, unicode.Quotation_Mark):
+            lastQuote = c
+            return false
+        default:
+            return unicode.IsSpace(c)
+
+        }
+    }
+
+    // splitting string by space but considering quoted section
+    items := strings.FieldsFunc(options, f)
+
+    // create and fill the map
+    m := make(map[string]string)
+    for _, item := range items {
+        x := strings.Split(item, "=")
+        m[x[0]] = x[1]
+	}
+	return m
+}

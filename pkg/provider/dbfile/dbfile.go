@@ -1,10 +1,13 @@
 package dbfile
 
 import (
-	"github.com/Axili39/statistics/pkg/provider"
-	"time"
-	"fmt"
 	"database/sql"
+	"fmt"
+	"time"
+
+
+	"github.com/Axili39/statistics/pkg/database"
+	"github.com/Axili39/statistics/pkg/provider"
 )
 
 type DBFileProvider struct {
@@ -20,9 +23,8 @@ func (p *DBFileProvider) RetrieveData(ticker string, from time.Time, to time.Tim
 	}
 	defer rows.Close()
 
-
 	var records []provider.EodRecord
-	
+
 	for rows.Next() {
 		var record provider.EodRecord
 		err = rows.Scan(&record.Ticker, &record.Date, &record.Open, &record.High, &record.Low, &record.Close, &record.AdjClose, &record.Volume)
@@ -33,4 +35,19 @@ func (p *DBFileProvider) RetrieveData(ticker string, from time.Time, to time.Tim
 		records = append(records, record)
 	}
 	return records, nil
+}
+
+func (p *DBFileProvider) Setup(options string) error {
+	m := provider.ParseOptions(options)
+	file, ok := m["file"]
+	if ok == true {
+		var err error
+		p.Db, err = database.Open(file)
+		if err != nil {
+			return err
+		}
+	} else {
+		return fmt.Errorf("missing filename option")
+	}
+	return nil
 }

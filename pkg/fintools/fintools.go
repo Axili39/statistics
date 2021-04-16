@@ -8,6 +8,44 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
+func ComputeRegression(db *sql.DB, ticker string, from time.Time, to time.Time) (stats.Series, error) {
+	// load
+	rows, err := db.Query("SELECT date, close FROM eod WHERE close <> \"null\" and ticker = \"" + ticker +
+	 "\" and date > \"" + from.Format("2006-01-02") + 
+	 "\" and date < \"" + to.Format("2006-01-02") + "\"")
+	if err != nil {
+		fmt.Println(err)
+		return nil, err
+	}
+	defer rows.Close()
+	var serie stats.Series
+
+	var date string
+	var close float64
+	for rows.Next() {
+		err = rows.Scan(&date, &close)
+		if err != nil {
+			fmt.Println(err)
+			return nil, err
+		}
+
+		t, err := time.Parse("2006-01-02T00:00:00Z", date)
+		if err != nil {
+			fmt.Println(err)
+			continue
+		}
+		serie = append(serie, stats.Coordinate{t.Sub(from).Seconds(), close})
+	}
+
+	// compute 
+	reg, err := stats.LinearRegression(serie)
+	if err != nil {
+		log.Println("regression error:",err)
+		return nil, err
+	}
+	return reg, nil
+}
+
 // Compute linear regression serie and find candidate
 func CheckTicker(db *sql.DB, ticker string, after time.Time, criteria float64) {
 	// load

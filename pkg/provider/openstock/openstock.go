@@ -41,3 +41,13 @@ func (p *OpenstockProvider) RetrieveData(ticker string, from time.Time, to time.
 	
 	return records, nil
 }
+
+func (p *OpenstockProvider) Setup(options string) error {
+	m := provider.ParseOptions(options)
+	var ok bool
+	p.UrlBase, ok = m["url"]
+	if ok == false {
+		fmt.Errorf("missing filename option")
+	}
+	return nil
+}

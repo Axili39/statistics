@@ -47,6 +47,7 @@ func update(args []string) {
 	days := CommandLine.Int("days", 0, "how many days to update")
 	providers := CommandLine.String("provider", "yahoo", "provider to query (yahoo, xxxxx, openstocks")
 	ticker := CommandLine.String("ticker", "", "ticker to update")
+	options := CommandLine.String("options", "", "option passed to provider")
 	err := CommandLine.Parse(args)	
 	if err != nil {
 		fmt.Println("error")
@@ -70,14 +71,23 @@ func update(args []string) {
 	switch *providers {
 	case "yahoo":
 		p = &yahoo.YahooStockProvider{}
+		// Option rate limiter
 	case "openstock":
-		p = &openstock.OpenstockProvider{UrlBase: "http://127.0.0.1:8080"}
+		p = &openstock.OpenstockProvider{}
+		// UrlBase: option "http://127.0.0.1:8080" mandatory
 	case "dbfile":
-		p = &dbfile.DBFileProvider{Db: db}
+		p = &dbfile.DBFileProvider{}
+		// Filename : option mandatory
 	default:
 		fmt.Println("provider not yet implemented")
 		os.Exit(1)
 	}
+
+	err = p.Setup(*options)
+	if err != nil {
+		fmt.Println("error when try to setup provider :", err)
+	}
+	fmt.Println("using provider :", *providers, "with configuration :", *options)
 
 	if *ticker == "" {
 		err = database.UpdateAllTickers(db, p, time.Now().AddDate(*years*-1, *months*-1, *days*-1), time.Now())
