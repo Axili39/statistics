@@ -14,9 +14,9 @@ type DBFileProvider struct {
 	Db *sql.DB
 }
 
-func (p *DBFileProvider) RetrieveData(ticker string, from time.Time, to time.Time) ([]provider.EodRecord, error) {
+func (p *DBFileProvider) RetrieveData(exchange  string, symbol string, from time.Time, to time.Time) ([]provider.EodRecord, error) {
 	// load
-	rows, err := p.Db.Query("SELECT ticker, date, open, high, low, close, adj_close, volume FROM eod WHERE ticker = \"" + ticker + "\" and date >= \"" + from.Format("2006-01-02") + "\" and date <= \"" + to.Format("2006-01-02") + "\"")
+	rows, err := p.Db.Query("SELECT exchange, symbol, date, open, high, low, close, adj_close, volume FROM eod WHERE exchange = \"" + exchange + "\" and symbol =\"" + symbol + "\" and date >= \"" + from.Format("2006-01-02") + "\" and date <= \"" + to.Format("2006-01-02") + "\"")
 	if err != nil {
 		fmt.Println(err)
 		return nil, err
@@ -27,7 +27,7 @@ func (p *DBFileProvider) RetrieveData(ticker string, from time.Time, to time.Tim
 
 	for rows.Next() {
 		var record provider.EodRecord
-		err = rows.Scan(&record.Ticker, &record.Date, &record.Open, &record.High, &record.Low, &record.Close, &record.AdjClose, &record.Volume)
+		err = rows.Scan(&record.Exchange, record.Symbol, &record.Date, &record.Open, &record.High, &record.Low, &record.Close, &record.AdjClose, &record.Volume)
 		if err != nil {
 			fmt.Println(err)
 			return nil, err
@@ -37,7 +37,7 @@ func (p *DBFileProvider) RetrieveData(ticker string, from time.Time, to time.Tim
 	return records, nil
 }
 
-func (p *DBFileProvider) Setup(options string) error {
+func (p *DBFileProvider) Setup(options string, db *sql.DB) error {
 	m := provider.ParseOptions(options)
 	file, ok := m["file"]
 	if ok == true {

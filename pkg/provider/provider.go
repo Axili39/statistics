@@ -1,6 +1,7 @@
 package provider
 
 import (
+	"database/sql"
 	"time"
 	"strconv"
 	"strings"
@@ -8,7 +9,8 @@ import (
 )
 
 type EodRecord struct {
-	Ticker   string		`json:"ticker"`
+	Exchange string		`json:"exchange"`
+	Symbol   string     `json:"symbol"`
 	Date     time.Time	`json:"date"`
 	Open     float64	`json:"open"`
 	High     float64	`json:"high"`
@@ -19,13 +21,13 @@ type EodRecord struct {
 }
 
 type StockProvider interface {
-	RetrieveData(ticker string, from time.Time, to time.Time) ([]EodRecord, error)
-	Setup(options string) error
+	RetrieveData(exchange  string, symbol string, from time.Time, to time.Time) ([]EodRecord, error)
+	Setup(options string, db *sql.DB) error
 }
 
-func EodRecordFromString(ticker string, date string, open string, high string, low string, close string, adjClose string, volume string) (*EodRecord, error) { 
+func EodRecordFromString(exchange string, symbol string, date string, open string, high string, low string, close string, adjClose string, volume string) (*EodRecord, error) { 
 	var err error	
-	record := EodRecord { Ticker: ticker }
+	record := EodRecord { Exchange: exchange, Symbol: symbol }
 
 	record.Date, err = time.Parse("2006-01-02", date)
 	if err != nil {

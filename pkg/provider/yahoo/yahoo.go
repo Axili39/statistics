@@ -1,6 +1,7 @@
 package yahoo
 
 import (
+	"database/sql"
 	"encoding/csv"
 	"fmt"
 	"io"
@@ -17,13 +18,19 @@ type YahooStockProvider struct {
 	// TODO add a rate limiter
 	lastRequest time.Time
 	period int
+	xchgMap map [string]string
 }
 
-func (p *YahooStockProvider) RetrieveData(ticker string, from time.Time, to time.Time) ([]provider.EodRecord, error) {
+func (p *YahooStockProvider) getTicker(exchange string, symbol string) string {
+	return symbol + p.xchgMap[exchange]
+}
+
+func (p *YahooStockProvider) RetrieveData(exchange string, symbol string, from time.Time, to time.Time) ([]provider.EodRecord, error) {
 	if  time.Now().Second() - p.lastRequest.Second() < p.period {
 		// wait
 		time.Sleep(time.Duration(p.period)*time.Second)
 	}
+	ticker := p.getTicker(exchange, symbol)
 	url := urlBase + ticker +
 		"?period1=" + fmt.Sprint(from.Unix()) +
 		"&period2=" + fmt.Sprint(to.Unix()) +
@@ -61,7 +68,7 @@ func (p *YahooStockProvider) RetrieveData(ticker string, from time.Time, to time
 			return nil, err
 		}
 
-		eodRecord, err := provider.EodRecordFromString(ticker, record[0], record[1], record[2], record[3], record[4], record[5], record[6])
+		eodRecord, err := provider.EodRecordFromString(exchange, symbol, record[0], record[1], record[2], record[3], record[4], record[5], record[6])
 		if err != nil {
 			continue
 		}
@@ -70,7 +77,7 @@ func (p *YahooStockProvider) RetrieveData(ticker string, from time.Time, to time
 	return records, nil
 }
 
-func (p *YahooStockProvider) Setup(options string) error {
+func (p *YahooStockProvider) Setup(options string, db *sql.DB) error {
 	m := provider.ParseOptions(options)
 	period, ok := m["period"]
 	if ok == true {
@@ -82,5 +89,22 @@ func (p *YahooStockProvider) Setup(options string) error {
 		}
 	}
 	p.lastRequest = time.Now().Add(time.Duration(-1*p.period)*time.Second)
+
+	// fill exchange map
+	rows, err := db.Query("SELECT BEC, EOD FROM exchanges")
+	if err != nil {
+		return err
+	}
+	p.xchgMap = make(map[string]string)
+	for rows.Next() {
+		var bec string
+		var eod string
+		err = rows.Scan(&bec, &eod)
+		if err != nil {
+			fmt.Println(err)
+			return err
+		}
+		p.xchgMap[bec] = "." + eod
+	}
 	return nil
 }

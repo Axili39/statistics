@@ -17,15 +17,15 @@ func anime(iterator int) {
 	fmt.Printf(chars[iterator%4])
 }
 
-func Update(db *sql.DB, p provider.StockProvider, ticker string, from time.Time, to time.Time) error {
+func Update(db *sql.DB, p provider.StockProvider, exchange string, symbol string, from time.Time, to time.Time) error {
 	// Direct download
-	data, err := p.RetrieveData(ticker, from, to)
+	data, err := p.RetrieveData(exchange, symbol, from, to)
 	if err != nil {
 		return err
 	}
 
 	// Prepare Db
-	stmt, err := db.Prepare("INSERT INTO eod(ticker, date, open, high, low, close, adj_close, volume) values(?,?,?,?,?,?,?,?)")
+	stmt, err := db.Prepare("INSERT INTO eod(exchange, symbol, date, open, high, low, close, adj_close, volume) values(?,?,?,?,?,?,?,?,?)")
 	if err != nil {
 		return err
 	}
@@ -34,7 +34,7 @@ func Update(db *sql.DB, p provider.StockProvider, ticker string, from time.Time,
 	fmt.Println("\ttotal records :", len(data))
 	for index, record := range data {
 
-		res, err := stmt.Exec(record.Ticker, record.Date, record.Open, record.High, record.Low, record.Close, record.AdjClose, record.Volume)
+		res, err := stmt.Exec(record.Exchange, record.Symbol, record.Date, record.Open, record.High, record.Low, record.Close, record.AdjClose, record.Volume)
 		if err != nil {
 			fmt.Println(err, "  ...ignored")
 			continue
@@ -56,35 +56,34 @@ func Update(db *sql.DB, p provider.StockProvider, ticker string, from time.Time,
 	return nil
 }
 
-func UpdateAllTickers(db *sql.DB, p provider.StockProvider, from time.Time, to time.Time) error {
+func UpdateAll(db *sql.DB, p provider.StockProvider, from time.Time, to time.Time) error {
 	//
-	rows, err := db.Query("SELECT ticker, name  FROM tickers")
+	rows, err := db.Query("SELECT exchange, symbol, description FROM stocks")
 	if err != nil {
 		return err
 	}
 
-	var ticker string
-	var name string
-
 	type record struct {
-		ticker string
-		name   string
+		exchange   string
+		symbol string
+		desc   string
 	}
 	var work []record
 	for rows.Next() {
-		err = rows.Scan(&ticker, &name)
+		var elem record
+		err = rows.Scan(&elem.exchange, &elem.symbol, &elem.desc)
 		if err != nil {
 			return err
 		}
 
-		work = append(work, record{ticker, name})
+		work = append(work, elem)
 
 	}
 	rows.Close()
 
 	for _, r := range work {
-		fmt.Println("Loading ticker :", r.ticker, " ", r.name)
-		err = Update(db, p, r.ticker, from, to)
+		fmt.Println("Loading stocks EX:", r.exchange, " SYMB :", r.symbol, " ", r.desc)
+		err = Update(db, p, r.exchange, r.symbol, from, to)
 		if err != nil {
 			return err
 		}
@@ -93,9 +92,56 @@ func UpdateAllTickers(db *sql.DB, p provider.StockProvider, from time.Time, to t
 	return nil
 }
 
-// ImportTickerList : import tickers list from csv file to database
+// ImportExchanges : Import Stock Exchanges from Stock Market MBA csv format
+func ImportExchanges(db *sql.DB, filename string) error {
+	// Open the file
+	csvfile, err := os.Open(filename)
+	if err != nil {
+		return err
+	}
+
+	defer csvfile.Close()
+
+	// Parse the file
+	r := csv.NewReader(csvfile)
+	r.Comma = ';'
+
+	// Read and ignore labels
+	_, err = r.Read()
+	if err == io.EOF {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	// Prepare Db
+	stmt, err := db.Prepare("INSERT INTO exchanges ('BEC', 'BCC', 'country', 'description', 'MIC', 'GOOGLE', 'EOD') values(?,?,?,?,?,?,?)")
+	if err != nil {
+		return err
+	}
+
+	// Iterate through the records
+	for {
+		// Read each record from csv
+		record, err := r.Read()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return err
+		}
+		stmt.Exec(record[0], record[1], record[2], record[3], record[4], record[5], record[6])
+		if err != nil {
+
+			return err
+		}
+	}
+	return nil
+}
+
+// ImportStocksList : import stocks list from csv file to database
 // csv must follow this format : ticker,name,exchange,category name,country
-func ImportTickerList(db *sql.DB, filename string) error {
+func ImportStocksList(db *sql.DB, exchange string, filename string) error {
 	// Open the file
 	csvfile, err := os.Open(filename)
 	if err != nil {
@@ -115,7 +161,7 @@ func ImportTickerList(db *sql.DB, filename string) error {
 		return err
 	}
 	// Prepare Db
-	stmt, err := db.Prepare("INSERT INTO tickers('ticker','name','exchange','category name','country') values(?,?,?,?,?)")
+	stmt, err := db.Prepare("INSERT INTO stocks('BBsymbol', 'description', 'exchange', 'symbol', 'IPO', 'ISIN', 'SEDOL') values(?,?,?,?,?,?,?)")
 	if err != nil {
 		return err
 	}
@@ -130,7 +176,7 @@ func ImportTickerList(db *sql.DB, filename string) error {
 		if err != nil {
 			return err
 		}
-		stmt.Exec(record[0], record[1], record[2], record[3], record[4])
+		stmt.Exec(record[0], record[1], exchange, record[2], record[3], record[8], record[9])
 		if err != nil {
 
 			return err
@@ -168,27 +214,43 @@ func Create(file string) error {
 	script := []string{
 		// Clean all tables
 		"DROP TABLE IF EXISTS eod",
-		"DROP TABLE IF EXISTS tickers",
+		"DROP TABLE IF EXISTS stocks",
+		"DROP TABLE IF EXISTS exchanges",
 
 		// Create Tables
+
+		`CREATE TABLE "exchanges" (
+    		"BEC"		STRING PRIMARY KEY,
+    		"BCC" 		STRING 	NULL,
+    		"country" 	STRING NULL,
+    		"description" STRING NULL,
+    		"MIC" 		STRING NULL,
+    		"GOOGLE" 	STRING NULL,
+    		"EOD" 		STRING NULL
+		)`,
+
 		`CREATE TABLE "eod" (
-    		"uid" 		INTEGER PRIMARY KEY AUTOINCREMENT,
-    		"ticker" 	STRING 	NULL,
-    		"date" 		DATE 	NULL,
+			"exchange"  STRING,
+			"symbol"    STRING,
+    		"date" 		DATE,
     		"open" 		FLOAT64 NULL,
     		"close" 	FLOAT64 NULL,
     		"high" 		FLOAT64 NULL,
     		"low" 		FLOAT64 NULL,
     		"adj_close" FLOAT64 NULL,
     		"volume" 	FLOAT64 NULL,
-    		UNIQUE(ticker, date)
+    		PRIMARY KEY (exchange, symbol, date)
 		)`,
-		`CREATE TABLE "tickers"(
-    		"ticker" 		STRING PRIMARY KEY,
-    		"name" 			STRING NULL,
-    		"exchange" 		STRING NULL, 
-    		"category name" STRING NULL, 
-    		"country" 		STRING NULL
+
+		`CREATE TABLE "stocks"(
+			"BBsymbol"		STRING,
+			"description"   STRING NULL,
+			"exchange"		STRING,
+			"symbol"    	STRING,
+			"IPO"           DATE NULL,
+			"ISIN" 			STRING NULL,
+			"SEDOL"         STRING NULL,
+			PRIMARY KEY (exchange, symbol)
 		)`,
 	}
 

@@ -26,7 +26,9 @@ func (s *Server)getTickerData(w http.ResponseWriter, r *http.Request, ps httprou
 	to := time.Now()
 
 	// ticker
-	ticker := ps.ByName("ticker")
+	exchange := ps.ByName("exchange")
+
+	symbol := ps.ByName("symbol")
 
 	// parse arguments
 	query := r.URL.Query()
@@ -51,7 +53,7 @@ func (s *Server)getTickerData(w http.ResponseWriter, r *http.Request, ps httprou
 	}
 	
 	p := dbfile.DBFileProvider{s.db}
-	data, err := p.RetrieveData(ticker, from, to)
+	data, err := p.RetrieveData(exchange, symbol, from, to)
 
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
@@ -74,7 +76,9 @@ func (s *Server)RegressionSeries(w http.ResponseWriter, r *http.Request, ps http
 	to := time.Now()
 
 	// ticker
-	ticker := ps.ByName("ticker")
+	exchange := ps.ByName("exchange")
+
+	symbol := ps.ByName("symbol")
 
 	// parse arguments
 	query := r.URL.Query()
@@ -98,7 +102,7 @@ func (s *Server)RegressionSeries(w http.ResponseWriter, r *http.Request, ps http
 		}
 	}
 
-	reg, err := fintools.ComputeRegression(s.db, ticker, from, to)
+	reg, err := fintools.ComputeRegression(s.db, exchange, symbol, from, to)
 	if err != nil {
 		w.WriteHeader(http.StatusConflict)
 		fmt.Fprintln(w,err)
@@ -117,8 +121,8 @@ func Serve(db *sql.DB, uri string) error {
 	server := Server{db}
     router := httprouter.New()
     
-	router.GET("/api/v1/stocks/:ticker", server.getTickerData)
-	router.GET("/api/v1/regression/:ticker", server.RegressionSeries)
+	router.GET("/api/v1/stocks/:exchange/:ticker", server.getTickerData)
+	router.GET("/api/v1/regression/:exchange/:ticker", server.RegressionSeries)
 
     return http.ListenAndServe(uri, router)
 }

@@ -33,7 +33,11 @@ func importTickers() {
 		log.Fatal(err)
 	}
 
-	err = database.ImportTickerList(db, "tickers.csv")
+	err = database.ImportExchanges(db, "gbe.csv")
+	if err != nil {
+		log.Fatal(err)
+	}
+	err = database.ImportStocksList(db, "FP", "FP.csv")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -46,7 +50,8 @@ func update(args []string) {
 	months := CommandLine.Int("months", 0, "how many months to update")
 	days := CommandLine.Int("days", 0, "how many days to update")
 	providers := CommandLine.String("provider", "yahoo", "provider to query (yahoo, xxxxx, openstocks")
-	ticker := CommandLine.String("ticker", "", "ticker to update")
+	exchange := CommandLine.String("exchange", "", "exchange to update")
+	symbol := CommandLine.String("symbol", "", "symbol to update")
 	options := CommandLine.String("options", "", "option passed to provider")
 	err := CommandLine.Parse(args)	
 	if err != nil {
@@ -83,19 +88,19 @@ func update(args []string) {
 		os.Exit(1)
 	}
 
-	err = p.Setup(*options)
+	err = p.Setup(*options, db)
 	if err != nil {
 		fmt.Println("error when try to setup provider :", err)
 	}
 	fmt.Println("using provider :", *providers, "with configuration :", *options)
 
-	if *ticker == "" {
-		err = database.UpdateAllTickers(db, p, time.Now().AddDate(*years*-1, *months*-1, *days*-1), time.Now())
+	if *exchange == "" || *symbol == "" {
+		err = database.UpdateAll(db, p, time.Now().AddDate(*years*-1, *months*-1, *days*-1), time.Now())
 		if err != nil {
 			log.Fatal(err)
 		}
 	} else {
-		err = database.Update(db, p, *ticker, time.Now().AddDate(*years*-1, *months*-1, *days*-1), time.Now())
+		err = database.Update(db, p, *exchange, *symbol, time.Now().AddDate(*years*-1, *months*-1, *days*-1), time.Now())
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -109,7 +114,8 @@ func compute(args []string) {
 	months := CommandLine.Int("months", 0, "how many months to update")
 	days := CommandLine.Int("days", 0, "how many days to update")
 	criteria := CommandLine.Float64("criteria", 0, "count of std deviation under regression line to select ticker")
-	ticker := CommandLine.String("ticker", "", "ticker to update")
+	exchange := CommandLine.String("exchange", "", "exchange to update")
+	symbol := CommandLine.String("symbol", "", "symbol to check")
 	err := CommandLine.Parse(args)	
 	if err != nil {
 		fmt.Println("error")
@@ -126,10 +132,10 @@ func compute(args []string) {
 		log.Fatal(err)
 	}
 
-	if *ticker == "" {
+	if *exchange == "" || *symbol == "" {
 		fintools.FindCandidate(db, -1*(*years), -1*(*months), -1*(*days), *criteria)
 	} else {
-		fintools.CheckTicker(db, *ticker, time.Now().AddDate(-1*(*years), -1*(*months), -1*(*days)), *criteria)
+		fintools.CheckTicker(db, *exchange, *symbol, time.Now().AddDate(-1*(*years), -1*(*months), -1*(*days)), *criteria)
 	}
 }
 
