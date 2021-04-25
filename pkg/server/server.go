@@ -121,8 +121,8 @@ func Serve(db *sql.DB, uri string) error {
 	server := Server{db}
     router := httprouter.New()
     
-	router.GET("/api/v1/stocks/:exchange/:ticker", server.getTickerData)
-	router.GET("/api/v1/regression/:exchange/:ticker", server.RegressionSeries)
+	router.GET("/api/v1/stocks/:exchange/:symbol", server.getTickerData)
+	router.GET("/api/v1/regression/:exchange/:symbol", server.RegressionSeries)
 
     return http.ListenAndServe(uri, router)
 }
