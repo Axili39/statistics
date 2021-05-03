@@ -18,6 +18,36 @@ func anime(iterator int) {
 }
 
 func Update(db *sql.DB, p provider.StockProvider, exchange string, symbol string, from time.Time, to time.Time) error {
+	//
+	rows, err := db.Query("SELECT stock_id, description FROM stocks WHERE exchange=\""+ exchange +"\" AND symbol=\"" + symbol +"\"")
+	if err != nil {
+		return err
+	}
+
+	defer rows.Close()
+	
+	var	stockID int
+	var desc   string	
+	
+	if rows.Next() {
+
+		err = rows.Scan(&stockID, &desc)
+		if err != nil {
+			return err
+		}		
+	}
+	rows.Close()
+
+	fmt.Println("Loading stocks EX:", exchange, " SYMB :", symbol, " ", desc)
+	err = updateInternal(db, p, stockID, exchange, symbol, from, to)
+	if err != nil {
+		return err
+	}
+	
+	return nil
+}
+
+func updateInternal(db *sql.DB, p provider.StockProvider, stockID int, exchange string, symbol string, from time.Time, to time.Time) error {
 	// Direct download
 	data, err := p.RetrieveData(exchange, symbol, from, to)
 	if err != nil {
@@ -25,7 +55,7 @@ func Update(db *sql.DB, p provider.StockProvider, exchange string, symbol string
 	}
 
 	// Prepare Db
-	stmt, err := db.Prepare("INSERT INTO eod(exchange, symbol, date, open, high, low, close, adj_close, volume) values(?,?,?,?,?,?,?,?,?)")
+	stmt, err := db.Prepare("INSERT INTO eod(stock_id, date, open, high, low, close, adj_close, volume) values(?,?,?,?,?,?,?,?)")
 	if err != nil {
 		return err
 	}
@@ -34,7 +64,7 @@ func Update(db *sql.DB, p provider.StockProvider, exchange string, symbol string
 	fmt.Println("\ttotal records :", len(data))
 	for index, record := range data {
 
-		res, err := stmt.Exec(record.Exchange, record.Symbol, record.Date, record.Open, record.High, record.Low, record.Close, record.AdjClose, record.Volume)
+		res, err := stmt.Exec(stockID, record.Date, record.Open, record.High, record.Low, record.Close, record.AdjClose, record.Volume)
 		if err != nil {
 			fmt.Println(err, "  ...ignored")
 			continue
@@ -58,12 +88,13 @@ func Update(db *sql.DB, p provider.StockProvider, exchange string, symbol string
 
 func UpdateAll(db *sql.DB, p provider.StockProvider, from time.Time, to time.Time) error {
 	//
-	rows, err := db.Query("SELECT exchange, symbol, description FROM stocks")
+	rows, err := db.Query("SELECT stock_id, exchange, symbol, description FROM stocks")
 	if err != nil {
 		return err
 	}
 
 	type record struct {
+		stockID int
 		exchange   string
 		symbol string
 		desc   string
@@ -71,7 +102,7 @@ func UpdateAll(db *sql.DB, p provider.StockProvider, from time.Time, to time.Tim
 	var work []record
 	for rows.Next() {
 		var elem record
-		err = rows.Scan(&elem.exchange, &elem.symbol, &elem.desc)
+		err = rows.Scan(&elem.stockID, &elem.exchange, &elem.symbol, &elem.desc)
 		if err != nil {
 			return err
 		}
@@ -83,7 +114,7 @@ func UpdateAll(db *sql.DB, p provider.StockProvider, from time.Time, to time.Tim
 
 	for _, r := range work {
 		fmt.Println("Loading stocks EX:", r.exchange, " SYMB :", r.symbol, " ", r.desc)
-		err = Update(db, p, r.exchange, r.symbol, from, to)
+		err = updateInternal(db, p, r.stockID, r.exchange, r.symbol, from, to)
 		if err != nil {
 			return err
 		}
@@ -230,8 +261,7 @@ func Create(file string) error {
 		)`,
 
 		`CREATE TABLE "eod" (
-			"exchange"  STRING,
-			"symbol"    STRING,
+			"stock_id"  INTEGER,
     		"date" 		DATE,
     		"open" 		FLOAT64 NULL,
     		"close" 	FLOAT64 NULL,
@@ -239,10 +269,11 @@ func Create(file string) error {
     		"low" 		FLOAT64 NULL,
     		"adj_close" FLOAT64 NULL,
     		"volume" 	FLOAT64 NULL,
-    		PRIMARY KEY (exchange, symbol, date)
+    		PRIMARY KEY (stock_id, date)
 		)`,
 
 		`CREATE TABLE "stocks"(
+			"stock_id"        INTEGER PRIMARY KEY AUTOINCREMENT,
 			"BBsymbol"		STRING,
 			"description"   STRING NULL,
 			"exchange"		STRING,
@@ -250,7 +281,7 @@ func Create(file string) error {
 			"IPO"           DATE NULL,
 			"ISIN" 			STRING NULL,
 			"SEDOL"         STRING NULL,
-			PRIMARY KEY (exchange, symbol)
+			UNIQUE (exchange, symbol)
 		)`,
 	}
 

@@ -11,9 +11,10 @@ import (
 	"github.com/Axili39/statistics/pkg/database"
 	"github.com/Axili39/statistics/pkg/fintools"
 	"github.com/Axili39/statistics/pkg/provider"
+	"github.com/Axili39/statistics/pkg/provider/dbfile"
+	"github.com/Axili39/statistics/pkg/provider/marketstack"
 	"github.com/Axili39/statistics/pkg/provider/openstock"
 	"github.com/Axili39/statistics/pkg/provider/yahoo"
-	"github.com/Axili39/statistics/pkg/provider/dbfile"
 	"github.com/Axili39/statistics/pkg/server"
 )
 
@@ -83,6 +84,9 @@ func update(args []string) {
 	case "dbfile":
 		p = &dbfile.DBFileProvider{}
 		// Filename : option mandatory
+	case "marketstack":
+		p = &marketstack.MarketstackProvider{}
+		// ApiKey : option mandatory		
 	default:
 		fmt.Println("provider not yet implemented")
 		os.Exit(1)

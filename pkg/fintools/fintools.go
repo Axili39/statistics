@@ -8,14 +8,14 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
-func ComputeRegression(db *sql.DB, exchange string, symbol string, from time.Time, to time.Time) (stats.Series, error) {
+func ComputeRegression(db *sql.DB, exchange string, symbol string, from time.Time, to time.Time) (stats.Series, stats.Series, float64, error) {
 	// load
-	rows, err := db.Query("SELECT date, close FROM eod WHERE close <> \"null\" and exchange = \"" + exchange + "\" and symbol=\"" + symbol +
-	 "\" and date > \"" + from.Format("2006-01-02") + 
-	 "\" and date < \"" + to.Format("2006-01-02") + "\"")
+	rows, err := db.Query("SELECT eod.date, eod.close FROM eod JOIN stocks WHERE eod.stock_id = stocks.stock_id and eod.close <> \"null\" and stocks.exchange = \"" + exchange + "\" and stocks.symbol=\"" + symbol +
+	 "\" and eod.date >= \"" + from.Format("2006-01-02") + 
+	 "\" and eod.date <= \"" + to.Format("2006-01-02") + "\"")
 	if err != nil {
 		fmt.Println(err)
-		return nil, err
+		return nil, nil, 0.0, err
 	}
 	defer rows.Close()
 	var serie stats.Series
@@ -26,7 +26,7 @@ func ComputeRegression(db *sql.DB, exchange string, symbol string, from time.Tim
 		err = rows.Scan(&date, &close)
 		if err != nil {
 			fmt.Println(err)
-			return nil, err
+			return nil, nil, 0.0, err
 		}
 
 		t, err := time.Parse("2006-01-02T00:00:00Z", date)
@@ -41,56 +41,28 @@ func ComputeRegression(db *sql.DB, exchange string, symbol string, from time.Tim
 	reg, err := stats.LinearRegression(serie)
 	if err != nil {
 		log.Println("regression error:",err)
-		return nil, err
-	}
-	return reg, nil
-}
-
-// Compute linear regression serie and find candidate
-func CheckTicker(db *sql.DB, exchange string, symbol string, after time.Time, criteria float64) {
-	// load
-	rows, err := db.Query("SELECT date, close FROM eod WHERE close <> \"null\" and exchange = \"" + exchange + "\" and symbol=\"" + symbol + "\" and date > \"" + after.Format("2006-01-02") + "\"")
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-	defer rows.Close()
-	var serie stats.Series
-
-	var date string
-	var close float64
-	for rows.Next() {
-		err = rows.Scan(&date, &close)
-		if err != nil {
-			fmt.Println(err)
-			return
-		}
-
-		t, err := time.Parse("2006-01-02T00:00:00Z", date)
-		if err != nil {
-			fmt.Println(err)
-			continue
-		}
-		serie = append(serie, stats.Coordinate{t.Sub(after).Seconds(), close})
+		return nil, nil, 0.0, err
 	}
 
-	reg, err := stats.LinearRegression(serie)
-	if err != nil {
-		log.Println("regression error:",err)
-		return
-	}
+	// Compute Standard Deviation
 	var sample stats.Float64Data
 	for index := range reg {
 		sample = append(sample, serie[index].Y-reg[index].Y)
 	}
 	stddev, _ := stats.StandardDeviation(sample)
+	
+	return serie, reg, stddev, nil
+}
 
-	/*
-	for index := range reg {
-		deltaStd := (serie[index].Y-reg[index].Y)/stddev
-		fmt.Println("date :", records[index].Date, " open:", serie[index].Y, " reg:", reg[index].Y, " dY:", serie[index].Y-reg[index].Y, " dStd:", deltaStd)
+// Compute linear regression serie and find candidate
+func CheckTicker(db *sql.DB, exchange string, symbol string, after time.Time, criteria float64) {
+	
+	// Compute regression
+	serie, reg, stddev, err := ComputeRegression(db, exchange, symbol, after, time.Now())
+	if err != nil {
+		fmt.Println(err)
+		return
 	}
-	*/
 	index := len(serie)-1
 	deltaStd := (serie[index].Y-reg[index].Y)/stddev
 	if deltaStd < criteria {

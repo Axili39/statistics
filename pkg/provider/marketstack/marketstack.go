@@ -5,8 +5,9 @@ import (
 	"time"
 	"net/http"
 	"fmt"
-	"encoding/csv"
-	"io"
+	"database/sql"
+	"encoding/json"
+	"io/ioutil"
 )
 
 const urlBase string = "http://api.marketstack.com/v1/eod"
@@ -33,5 +34,29 @@ func (p *MarketstackProvider) RetrieveData(exchange  string, symbol string, from
 	}
 	defer resp.Body.Close()
 
+	// Parse body
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		fmt.Println(exchange, ":", symbol, " : ", err)
+		return  nil, err
+	}
+	var records []provider.EodRecord
+	err = json.Unmarshal(body, &records)
+	if err != nil {
+		fmt.Println(exchange, ":", symbol, " : ", err)
+		return nil, err
+	}
+	
+	return records, nil
 	// TODO unmarshall to EodRecord
+}
+
+func (p *MarketstackProvider) Setup(options string, db *sql.DB) error {
+	m := provider.ParseOptions(options)
+	var ok bool
+	p.ApiKey, ok = m["apikey"]
+	if ok == false {
+		fmt.Errorf("api key option")
+	}
+	return nil
 }

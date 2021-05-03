@@ -10,6 +10,7 @@ import (
 	"github.com/Axili39/statistics/pkg/fintools"
 	"github.com/Axili39/statistics/pkg/provider/dbfile"
 	"github.com/julienschmidt/httprouter"
+	"github.com/montanaflynn/stats"
 )
 
 // implements local provider to act as a stocks provider
@@ -102,13 +103,22 @@ func (s *Server)RegressionSeries(w http.ResponseWriter, r *http.Request, ps http
 		}
 	}
 
-	reg, err := fintools.ComputeRegression(s.db, exchange, symbol, from, to)
+	type response struct {
+		Exchange string `json:"exchange"`
+		Symbol string  `json:"symbol"`
+		From time.Time `json:"from"`
+		Serie stats.Series `json:"serie"`
+		Regression stats.Series `json:"regression"`
+		StandardDev float64 `json:"standard_deviation"`
+	}
+	resp := response{Exchange: exchange, Symbol: symbol, From: from}
+	resp.Serie, resp.Regression, resp.StandardDev, err = fintools.ComputeRegression(s.db, exchange, symbol, from, to)
 	if err != nil {
 		w.WriteHeader(http.StatusConflict)
 		fmt.Fprintln(w,err)
 		return
 	}
-	body, err := json.Marshal(reg)
+	body, err := json.Marshal(resp)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		fmt.Fprintln(w, err.Error())
