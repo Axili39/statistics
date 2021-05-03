@@ -112,7 +112,7 @@ func (s *Server)RegressionSeries(w http.ResponseWriter, r *http.Request, ps http
 		StandardDev float64 `json:"standard_deviation"`
 	}
 	resp := response{Exchange: exchange, Symbol: symbol, From: from}
-	resp.Serie, resp.Regression, resp.StandardDev, err = fintools.ComputeRegression(s.db, exchange, symbol, from, to)
+	resp.Serie, resp.Regression, resp.StandardDev, _, err = fintools.ComputeRegression(s.db, exchange, symbol, from, to)
 	if err != nil {
 		w.WriteHeader(http.StatusConflict)
 		fmt.Fprintln(w,err)
