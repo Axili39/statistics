@@ -5,7 +5,7 @@
 <head>
   <meta content="text/html;charset=utf-8" http-equiv="Content-Type">
   <meta content="utf-8" http-equiv="encoding">
-  <title>Graph2d | Basic Example</title>
+  <title>{{ .Title }} </title>
 
   <style type="text/css">
     body, html {
@@ -13,11 +13,11 @@
     }
   </style>
 
-  <script src="../../standalone/umd/vis-timeline-graph2d.min.js"></script>
-  <link href="../../styles/vis-timeline-graph2d.min.css" rel="stylesheet" type="text/css" />
+  <script src="/static/dist/vis-timeline-graph2d.min.js"></script>
+  <link href="/static/dist/vis-timeline-graph2d.min.css" rel="stylesheet" type="text/css" />
 </head>
 <body>
-<h2>Graph2d | Basic Example</h2>
+<h2>{{ .Title }}</h2>
 <br />
 <div id="visualization"></div>
 
@@ -25,18 +25,18 @@
 
   var container = document.getElementById('visualization');
   var items = [
-    {x: '2014-06-11', y: 10},
-    {x: '2014-06-12', y: 25},
-    {x: '2014-06-13', y: 30},
-    {x: '2014-06-14', y: 10},
-    {x: '2014-06-15', y: 15},
-    {x: '2014-06-16', y: 30}
+      {{ range $groupidx, $serie := .Series }}
+       {{if $groupidx }},{{end}}
+        {{range $index, $elem := $serie.Values }} {{if $index }},{{end}} { x:'{{$elem.X }}', y: {{$elem.Y}}, group: {{$groupidx}} } {{end}}
+      {{ end }}
   ];
 
   var dataset = new vis.DataSet(items);
   var options = {
-    start: '2014-06-10',
-    end: '2014-06-18'
+    start: '2011-05-19',
+    end: '2021-05-19',
+    autoResize: true,
+    drawPoints: false
   };
   var graph2d = new vis.Graph2d(container, dataset, options);
 </script>
