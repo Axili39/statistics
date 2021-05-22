@@ -116,7 +116,7 @@ func UpdateAll(db *sql.DB, p provider.StockProvider, from time.Time, to time.Tim
 		fmt.Println("Loading stocks EX:", r.exchange, " SYMB :", r.symbol, " ", r.desc)
 		err = updateInternal(db, p, r.stockID, r.exchange, r.symbol, from, to)
 		if err != nil {
-			return err
+			fmt.Println("Error when updating ", r.exchange, ":", r.stockID, err)
 		}
 	}
 
