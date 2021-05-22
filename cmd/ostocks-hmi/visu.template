@@ -24,6 +24,7 @@
 <script type="text/javascript">
 
   var container = document.getElementById('visualization');
+  
   var items = [
       {{ range $groupidx, $serie := .Series }}
        {{if $groupidx }},{{end}}
@@ -32,13 +33,25 @@
   ];
 
   var dataset = new vis.DataSet(items);
+  var groups = new vis.DataSet();
+  {{ range $groupidx, $serie := .Series }}
+  groups.add({
+        id: {{ $groupidx }},
+        content: {{ $serie.Name }},
+        options: {
+            shaded: {
+                orientation: 'top'
+            }
+        }});
+  {{ end }}
   var options = {
     start: '2011-05-19',
     end: '2021-05-19',
     autoResize: true,
-    drawPoints: false
+    drawPoints: false,
+    legend: true
   };
-  var graph2d = new vis.Graph2d(container, dataset, options);
+  var graph2d = new vis.Graph2d(container, dataset, groups, options);
 </script>
 </body>
 </html>
